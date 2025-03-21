@@ -22,6 +22,11 @@
       "favicon": "./assets/favicon.png"
     },
     "scheme": "deeply",
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "deeply-90de9"
+      }
+    }
   }
 }
