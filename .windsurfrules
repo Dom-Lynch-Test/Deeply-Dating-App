@@ -1,0 +1,187 @@
+Below is an updated version of your guidelines with improvements and clarifications integrated:
+
+⸻
+
+You are an expert in TypeScript, React Native, Expo, and Mobile UI development.
+
+⸻
+
+Code Style and Structure
+	•	Write Concise, Technical Code:
+Write concise, technical TypeScript code with accurate examples. Use clear, descriptive names for variables and functions.
+	•	Functional & Declarative Patterns:
+Favor functional and declarative programming patterns; avoid classes in favor of hooks and custom hooks.
+	•	Modularization Over Duplication:
+Prefer iteration and modularization to reduce code duplication. Break down complex components into smaller, reusable pieces.
+	•	File Organization:
+Structure each file with: the exported component, subcomponents, helpers, static content, and types.
+Consider adding ESLint (with TypeScript support) and JSDoc for consistent code quality and documentation.
+	•	Expo Documentation:
+Follow Expo’s official documentation for setting up and configuring projects.
+
+⸻
+
+Naming Conventions
+	•	Directory Naming:
+Use lowercase with dashes for directories (e.g., components/auth-wizard).
+	•	Exports:
+Favor named exports for components and functions.
+	•	Consistent Naming Patterns:
+Use descriptive names for hooks (e.g., useFetchData) and constants (e.g., API_URL).
+
+⸻
+
+TypeScript Usage
+	•	Strict Typing:
+Use TypeScript for all code and enable strict mode for better type safety.
+	•	Interfaces and Types:
+Prefer interfaces over types for object shapes; however, use types when unions or advanced type features are needed.
+	•	Avoid Enums:
+Avoid enums; use maps or union types instead.
+	•	Functional Components:
+Build components as functions with TypeScript interfaces for props.
+
+⸻
+
+Syntax and Formatting
+	•	Pure Functions:
+Use the function keyword for pure functions to emphasize clarity and predictability.
+	•	Concise Conditionals:
+Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+	•	Declarative JSX:
+Emphasize declarative JSX.
+Use Prettier for consistent code formatting and consider ESLint rules for additional enforcement.
+
+⸻
+
+UI and Styling
+	•	Built-in Components & Responsive Design:
+Use Expo’s built-in components for common UI patterns. Implement responsive design with Flexbox and Expo’s useWindowDimensions.
+	•	Styling Solutions:
+Use styled-components or Tailwind CSS for component styling.
+Consider a centralized design system or theming strategy (e.g., a ThemeProvider) for consistency across the app.
+	•	Dark Mode & Accessibility:
+Implement dark mode support using Expo’s useColorScheme.
+Ensure high accessibility (a11y) by using ARIA roles and native accessibility props.
+	•	Animations & Gestures:
+Leverage react-native-reanimated and react-native-gesture-handler for performant animations and gesture handling.
+
+⸻
+
+Safe Area Management
+	•	Global Safe Area Handling:
+Use SafeAreaProvider from react-native-safe-area-context to manage safe areas globally.
+	•	Component Wrapping:
+Wrap top-level components with SafeAreaView to handle notches, status bars, and other screen insets on both iOS and Android. Use SafeAreaScrollView for scrollable content to ensure safe area compliance.
+	•	Avoid Hardcoding:
+Do not hardcode padding or margins for safe areas; rely on SafeAreaView and associated context hooks.
+	•	Testing Across Devices:
+Test safe area behavior on various device simulators/emulators to ensure consistent layout.
+
+⸻
+
+Performance Optimization
+	•	State & Effects:
+Minimize the use of useState and useEffect; prefer context and reducers for global state management. Use React’s memoization (useMemo, useCallback, React.memo) to avoid unnecessary re-renders.
+	•	Optimized Startup:
+Utilize Expo’s AppLoading and SplashScreen for an optimized app startup experience.
+	•	Image Optimization:
+Optimize images by using WebP where supported, providing size metadata, and implementing lazy loading with expo-image.
+	•	Code Splitting & Lazy Loading:
+Implement code splitting and lazy load non-critical components using React’s Suspense and dynamic imports. Clarify which components are “non-critical” to ensure a smooth user experience.
+	•	Performance Monitoring:
+Profile and monitor performance with React Native’s built-in tools and Expo’s debugging features. Encourage regular performance audits using the React DevTools Profiler.
+
+⸻
+
+Navigation
+	•	Routing & Navigation:
+Use react-navigation for routing; follow best practices for stack, tab, and drawer navigators.
+	•	Deep Linking:
+Leverage deep linking and universal links for improved engagement and navigation flow, and include fallback strategies for broken links.
+	•	Dynamic Routes:
+Use dynamic routes with expo-router for handling complex navigation flows.
+
+⸻
+
+State Management
+	•	Global State:
+Use React Context combined with useReducer for managing global state.
+	•	Data Fetching:
+Leverage react-query for efficient data fetching and caching; avoid excessive API calls.
+	•	Complex State Needs:
+For more complex state management, consider solutions like Zustand or Redux Toolkit, and document clear criteria for when to use them.
+	•	URL Parameters:
+Handle URL search parameters using libraries like expo-linking.
+
+⸻
+
+Error Handling and Validation
+	•	Runtime Validation:
+Use Zod for runtime validation and error handling to catch invalid data early.
+	•	Error Logging:
+Implement robust error logging using Sentry or a similar service.
+Separate logging strategies between development and production, using tools such as expo-error-reporter.
+	•	Error Handling Best Practices:
+	•	Handle errors at the beginning of functions.
+	•	Use early returns to avoid deeply nested if statements.
+	•	Avoid unnecessary else statements by following an if-return pattern.
+	•	Implement global error boundaries to catch unexpected errors.
+
+⸻
+
+Testing
+	•	Unit & Integration Testing:
+Write unit tests using Jest and React Native Testing Library.
+Implement integration tests for critical user flows using Detox, and consider snapshot testing for UI consistency.
+	•	CI/CD Integration:
+Establish code coverage targets and integrate tests into a CI/CD pipeline for consistent quality assurance.
+	•	Environment Testing:
+Use Expo’s testing tools to run tests across different environments.
+
+⸻
+
+Security
+	•	Input Sanitization:
+Sanitize user inputs to prevent XSS and other injection attacks.
+	•	Secure Storage:
+Use react-native-encrypted-storage for secure storage of sensitive data.
+	•	Secure Communication:
+Ensure secure communication with APIs using HTTPS and proper authentication mechanisms. Follow Expo’s Security guidelines.
+	•	Data Privacy & Compliance:
+Remain mindful of data privacy laws (e.g., GDPR) and handle sensitive data responsibly.
+
+⸻
+
+Internationalization (i18n)
+	•	Localization:
+Use react-native-i18n or expo-localization for internationalization and localization.
+	•	Multi-language Support:
+Support multiple languages and right-to-left (RTL) layouts.
+Implement fallback strategies if a translation is missing, and ensure proper text scaling and font adjustments for accessibility.
+
+⸻
+
+Key Conventions
+	1.	Managed Workflow:
+Rely on Expo’s managed workflow for streamlined development and deployment.
+	2.	Mobile Web Vitals:
+Prioritize key performance indicators such as load time, jank, and responsiveness.
+	3.	Environment Configuration:
+Use expo-constants for managing environment variables and configurations. Adopt a clear strategy for handling different environments (development, staging, production).
+	4.	Device Permissions:
+Use expo-permissions to handle device permissions gracefully.
+	5.	Over-the-Air Updates:
+Implement expo-updates for over-the-air (OTA) updates.
+	6.	Deployment Best Practices:
+Follow Expo’s best practices for app deployment and publishing. See Expo Distribution Guide.
+	7.	Platform Compatibility:
+Ensure compatibility with both iOS and Android by extensively testing on both platforms.
+
+⸻
+
+API Documentation
+	•	Referencing Documentation:
+Rely on Expo’s official documentation for detailed guidance on Views, Blueprints, Extensions, and best practices.
+
+⸻
