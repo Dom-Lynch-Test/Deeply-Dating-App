@@ -1,40 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import ProfileSetupLayout from '../../components/profile-setup/ProfileSetupLayout';
 import { useProfile } from '../../context/ProfileContext';
-import { getCurrentLocation } from '../../services/location';
+import { CITY_OPTIONS, setSelectedCity as getLocationForCity } from '../../services/location';
 
 const LocationScreen: React.FC = () => {
   const { state, dispatch } = useProfile();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [selectedCity, setSelectedCity] = useState<string>('');
   
-  const detectLocation = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const location = await getCurrentLocation();
-      
+  const handleCityChange = (city: string) => {
+    setSelectedCity(city);
+    
+    if (city) {
+      const locationData = getLocationForCity(city);
       dispatch({
         type: 'SET_LOCATION',
-        payload: location
+        payload: locationData
       });
-      
-    } catch (err) {
-      console.error('Error detecting location:', err);
-      setError('Failed to detect your location. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
-  
-  // Auto-detect location when screen loads
-  useEffect(() => {
-    if (!state.location) {
-      detectLocation();
-    }
-  }, []);
   
   const handleNext = () => {
     if (state.location) {
@@ -50,12 +35,39 @@ const LocationScreen: React.FC = () => {
       onNext={handleNext}
     >
       <View style={styles.container}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#FF3B6F" />
-            <Text style={styles.loadingText}>Detecting your location...</Text>
-          </View>
-        ) : state.location ? (
+        <View style={styles.pickerContainer}>
+          <Text style={styles.label}>Select your city:</Text>
+          {Platform.OS === 'ios' ? (
+            <View style={styles.iosPicker}>
+              <Picker
+                selectedValue={selectedCity}
+                onValueChange={handleCityChange}
+                style={styles.picker}
+              >
+                <Picker.Item label="Select a city" value="" />
+                {CITY_OPTIONS.map((city) => (
+                  <Picker.Item key={city} label={city} value={city} />
+                ))}
+              </Picker>
+            </View>
+          ) : (
+            <View style={styles.androidPicker}>
+              <Picker
+                selectedValue={selectedCity}
+                onValueChange={handleCityChange}
+                style={styles.picker}
+                dropdownIconColor="#FF3B6F"
+              >
+                <Picker.Item label="Select a city" value="" />
+                {CITY_OPTIONS.map((city) => (
+                  <Picker.Item key={city} label={city} value={city} />
+                ))}
+              </Picker>
+            </View>
+          )}
+        </View>
+        
+        {state.location && (
           <View style={styles.locationContainer}>
             <Text style={styles.locationText}>
               Your location: {state.location.city}
@@ -63,16 +75,6 @@ const LocationScreen: React.FC = () => {
             <Text style={styles.locationNote}>
               We only use city-level accuracy for matching
             </Text>
-          </View>
-        ) : (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity 
-              style={styles.retryButton}
-              onPress={detectLocation}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
           </View>
         )}
         
@@ -99,19 +101,37 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     alignItems: 'center',
   },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 40,
+  pickerContainer: {
+    width: '90%',
+    marginBottom: 20,
   },
-  loadingText: {
-    marginTop: 10,
+  label: {
     fontSize: 16,
-    color: '#666',
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
+  },
+  iosPicker: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginBottom: 20,
+  },
+  androidPicker: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginBottom: 20,
+  },
+  picker: {
+    height: 50,
+    width: '100%',
   },
   locationContainer: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginVertical: 20,
   },
   locationText: {
     fontSize: 20,
@@ -122,27 +142,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     fontStyle: 'italic',
-  },
-  errorContainer: {
-    alignItems: 'center',
-    marginVertical: 40,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#D32F2F',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  retryButton: {
-    backgroundColor: '#FF3B6F',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   infoContainer: {
     width: '90%',
