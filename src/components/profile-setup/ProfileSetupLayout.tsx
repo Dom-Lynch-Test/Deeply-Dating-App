@@ -31,20 +31,27 @@ const ProfileSetupLayout: React.FC<ProfileSetupLayoutProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   
   const handleNext = async () => {
-    if (nextDisabled || isProcessing) return;
+    if (nextDisabled || isProcessing) {
+      console.log('[DEBUG] Button click ignored - disabled or processing');
+      return;
+    }
     
+    console.log('[DEBUG] Next button clicked, nextButtonText:', nextButtonText);
     setIsProcessing(true);
     try {
       if (onNext) {
-        onNext();
+        console.log('[DEBUG] Calling onNext function');
+        await onNext();
+        console.log('[DEBUG] onNext function completed');
       } else {
+        console.log('[DEBUG] No onNext function, dispatching NEXT_STEP');
         dispatch({ type: 'NEXT_STEP' });
       }
     } catch (error) {
-      console.error('Error in next action:', error);
+      console.error('[ERROR] Error in next action:', error);
       // In development, we'll still allow navigation even if there are errors
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Continuing despite error in development mode');
+        console.warn('[DEBUG] Continuing despite error in development mode');
         dispatch({ type: 'NEXT_STEP' });
       }
     } finally {

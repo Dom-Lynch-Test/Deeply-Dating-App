@@ -75,7 +75,7 @@ const Navigation = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if ((isLoading || checkingProfile) && !loadingTimeout) {
-        console.warn('Loading timeout reached, forcing navigation to continue');
+        console.warn('[DEBUG] Loading timeout reached, forcing navigation to continue');
         setLoadingTimeout(true);
       }
     }, 5000); // 5 second timeout
@@ -90,13 +90,14 @@ const Navigation = () => {
           setCheckingProfile(true);
           setProfileError(null);
           const isComplete = await isProfileComplete(user.uid);
+          console.log('[DEBUG] Profile completion status:', isComplete);
           setProfileComplete(isComplete);
         } catch (error) {
-          console.error('Error checking profile status:', error);
+          console.error('[ERROR] Error checking profile status:', error);
           setProfileError('Failed to check profile status');
           // In development, assume profile is not complete to allow setup flow
           if (process.env.NODE_ENV !== 'production') {
-            console.warn('Continuing to profile setup despite error in development mode');
+            console.warn('[DEBUG] Continuing to profile setup despite error in development mode');
             setProfileComplete(false);
           }
         } finally {

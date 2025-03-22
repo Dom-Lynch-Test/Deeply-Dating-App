@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useProfile } from '../context/ProfileContext';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 
 // Import all profile setup screens
 import DisplayNameScreen from '../screens/profile-setup/DisplayNameScreen';

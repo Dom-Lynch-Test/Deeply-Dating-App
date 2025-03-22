@@ -1,21 +1,39 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, Image, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, StyleSheet, Text, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
+import { useNavigation, CommonActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import ProfileSetupLayout from '../../components/profile-setup/ProfileSetupLayout';
 import { useProfile } from '../../context/ProfileContext';
 import { RootStackParamList } from '../../navigation';
+import SmartImage from '../../components/SmartImage';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Match'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ProfileSetup'>;
 
 const ProfileReviewScreen: React.FC = () => {
-  const { state, dispatch, saveProfile, isProfileComplete } = useProfile();
+  const { state, dispatch, saveProfile } = useProfile();
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
   
+  const isProfileValid = () => {
+    // Check if all required fields are filled
+    return (
+      state.displayName &&
+      state.gender &&
+      state.age > 0 &&
+      state.preferredAgeMin > 0 &&
+      state.preferredAgeMax > 0 &&
+      state.location &&
+      state.photos.length >= 1 &&
+      state.prompts.value &&
+      state.prompts.partner &&
+      state.prompts.surprising
+    );
+  };
+
   const handleComplete = async () => {
-    if (!isProfileComplete()) {
+    if (!isProfileValid()) {
       Alert.alert(
         'Incomplete Profile',
         'Please complete all required fields before submitting.'
@@ -25,15 +43,65 @@ const ProfileReviewScreen: React.FC = () => {
     
     try {
       setSubmitting(true);
-      await saveProfile();
+      setError(null);
       
-      // Navigate to the main app
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Match' }],
-      });
+      console.log('[DEBUG] Saving profile...');
+      await saveProfile();
+      console.log('[DEBUG] Profile saved successfully, attempting navigation');
+      
+      // Navigate to the main app using CommonActions for more reliable navigation
+      try {
+        // Use CommonActions.navigate for more reliable navigation across nested navigators
+        navigation.dispatch(
+          CommonActions.navigate({
+            name: 'Match',
+          })
+        );
+        console.log('[DEBUG] Navigation to Match screen dispatched');
+      } catch (navError) {
+        console.error('[ERROR] Error navigating after profile completion:', navError);
+        
+        // If navigation fails, show a success message and let user continue
+        Alert.alert(
+          'Profile Saved',
+          'Your profile has been saved successfully! Please restart the app to continue.',
+          [
+            { 
+              text: 'OK',
+              onPress: () => {
+                // Try one more time with a different approach
+                try {
+                  // Try to navigate to the root navigator
+                  const rootNav = navigation.getParent();
+                  if (rootNav) {
+                    rootNav.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [{ name: 'Match' }],
+                      })
+                    );
+                    console.log('[DEBUG] Root navigation to Match screen dispatched');
+                  } else {
+                    // Last resort - try to reset the entire navigation state
+                    navigation.dispatch(
+                      CommonActions.reset({
+                        index: 0,
+                        routes: [{ name: 'Match' }],
+                      })
+                    );
+                    console.log('[DEBUG] Reset navigation state to Match screen');
+                  }
+                } catch (secondNavError) {
+                  console.error('[ERROR] Secondary navigation attempt failed:', secondNavError);
+                }
+              }
+            }
+          ]
+        );
+      }
     } catch (error) {
-      console.error('Error completing profile:', error);
+      console.error('[ERROR] Error completing profile:', error);
+      setError('Failed to save your profile. Please try again.');
       Alert.alert(
         'Error',
         'Failed to save your profile. Please try again.'
@@ -138,9 +206,9 @@ const ProfileReviewScreen: React.FC = () => {
           
           <View style={styles.photosContainer}>
             {state.photos.map((photo, index) => (
-              <Image 
+              <SmartImage 
                 key={index}
-                source={{ uri: photo }}
+                uri={photo}
                 style={styles.photo}
               />
             ))}
