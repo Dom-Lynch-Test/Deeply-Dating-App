@@ -10,6 +10,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { createUserProfile } from './users';
+import { UserProfile } from '../types/profile';
 
 // Sign up with email and password
 export const signUp = async (name: string, email: string, password: string) => {
@@ -25,7 +26,7 @@ export const signUp = async (name: string, email: string, password: string) => {
     
     // Create a user profile in Firestore
     await createUserProfile(user.uid, {
-      name,
+      displayName: name,
       email,
       createdAt: new Date()
     });
@@ -40,22 +41,39 @@ export const signUp = async (name: string, email: string, password: string) => {
 // Sign in with email and password
 export const signIn = async (email: string, password: string) => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    // Set a timeout to prevent hanging on network issues
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Login timeout - network may be unavailable')), 10000);
+    });
+    
+    // Race the signin against the timeout
+    const userCredential = await Promise.race([
+      signInWithEmailAndPassword(auth, email, password),
+      timeoutPromise
+    ]) as UserCredential;
+    
     return userCredential.user;
   } catch (error: any) {
     console.error('Error signing in:', error);
-    throw error;
+    
+    // Provide more user-friendly error messages
+    if (error.code === 'auth/network-request-failed' || error.message.includes('timeout')) {
+      throw new Error('Network connection issue. Please check your internet connection and try again.');
+    } else if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+      throw new Error('Invalid email or password. Please try again.');
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many failed login attempts. Please try again later or reset your password.');
+    } else {
+      throw error;
+    }
   }
 };
 
 // Sign in with Google
 export const signInWithGoogle = async (idToken: string) => {
   try {
-    // Create a Google credential with the token
-    const googleCredential = GoogleAuthProvider.credential(idToken);
-    
-    // Sign in with credential
-    const userCredential = await signInWithCredential(auth, googleCredential);
+    const credential = GoogleAuthProvider.credential(idToken);
+    const userCredential = await signInWithCredential(auth, credential);
     const user = userCredential.user;
     
     // Check if this is a new user (first time sign in)
@@ -65,7 +83,7 @@ export const signInWithGoogle = async (idToken: string) => {
     if (isNewUser) {
       // Create a user profile in Firestore
       await createUserProfile(user.uid, {
-        name: user.displayName || 'Google User',
+        displayName: user.displayName || 'Google User',
         email: user.email || '',
         createdAt: new Date(),
         // Add user photo URL to the photos array

@@ -68,7 +68,7 @@ if (validateEnvVariables()) {
     apiKey: "AIzaSyCcoEHjZ_WML0CALfbvoxRY1Qr9udcAMJI",
     authDomain: "deeply-90de9.firebaseapp.com",
     projectId: "deeply-90de9",
-    storageBucket: "deeply-90de9.firebasestorage.app",
+    storageBucket: "deeply-90de9.appspot.com",
     messagingSenderId: "604287607462",
     appId: "1:604287607462:web:b5fc2d308c177cfc4c4a67",
     measurementId: "G-PP6S66EVQP"
