@@ -1,64 +1,133 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator, ScrollView, Alert, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import ProfileSetupLayout from '../../components/profile-setup/ProfileSetupLayout';
 import { useProfile } from '../../context/ProfileContext';
 import { useAuth } from '../../context/AuthContext';
-import { pickImage, takePhoto, uploadPhoto, moderatePhoto } from '../../services/photos';
+import { pickImage, takePhoto, uploadPhoto, moderatePhoto, testFirebaseConnection } from '../../services/photos';
 import { REQUIRED_PHOTOS_COUNT } from '../../types/profile';
+import { testFirebaseConfig } from '../../config/firebase';
+import SmartImage from '../../components/SmartImage';
 
 const PhotosScreen: React.FC = () => {
   const { state, dispatch } = useProfile();
   const { user } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  
+  // Test function to check Firebase connectivity
+  const testFirebase = async () => {
+    setTestResult('Testing Firebase connectivity...');
+    try {
+      // Test Firebase config
+      const configTest = testFirebaseConfig();
+      console.log('[DEBUG] Firebase config test result:', configTest);
+      
+      // Create a simple test with a timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Firebase connection test timed out after 5 seconds')), 5000);
+      });
+      
+      // Test Firebase connection with timeout
+      const connectionPromise = testFirebaseConnection();
+      const result = await Promise.race([connectionPromise, timeoutPromise]);
+      
+      if (result === true) {
+        setTestResult('Firebase connection successful! ');
+      } else {
+        setTestResult('Firebase connection failed! Check console for details.');
+      }
+    } catch (error) {
+      console.error('[ERROR] Error testing Firebase:', error);
+      setTestResult(`Firebase test error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   
   const handleAddPhoto = async (source: 'camera' | 'library') => {
-    if (!user) return;
+    if (!user) {
+      console.error('[ERROR] No user found when trying to upload photo');
+      setError('You must be logged in to upload photos');
+      return;
+    }
+    
     if (state.photos.length >= REQUIRED_PHOTOS_COUNT) {
       Alert.alert('Maximum Photos', `You can only upload ${REQUIRED_PHOTOS_COUNT} photos.`);
       return;
     }
     
+    // Reset states at the beginning
+    setUploading(true);
+    setError(null);
+    
+    let photoUri: string | null = null;
+    
     try {
-      setUploading(true);
+      console.log('[DEBUG] Starting photo selection process');
       
       // Get photo from camera or library
-      const photoUri = source === 'camera' 
-        ? await takePhoto()
-        : await pickImage();
+      try {
+        photoUri = source === 'camera' 
+          ? await takePhoto()
+          : await pickImage();
+        console.log('[DEBUG] Photo selected:', photoUri ? 'success' : 'cancelled');
+      } catch (err) {
+        console.error('[ERROR] Error accessing camera/library:', err);
+        setError(Platform.OS === 'web' 
+          ? 'There was an issue accessing your camera/photos on web. Try using a mobile device for the best experience.'
+          : 'There was an issue accessing your camera/photos. Please check your permissions.');
+        setUploading(false);
+        return;
+      }
       
       if (!photoUri) {
+        console.log('[DEBUG] No photo selected, cancelling upload');
         setUploading(false);
         return;
       }
       
       setCurrentPhotoIndex(state.photos.length);
+      console.log('[DEBUG] Setting current photo index to:', state.photos.length);
       
       // Upload to Firebase Storage
-      const downloadUrl = await uploadPhoto(user.uid, photoUri);
-      
-      // Simulate AI moderation
-      const moderationResult = await moderatePhoto(downloadUrl);
-      
-      if (!moderationResult.isAppropriate) {
-        Alert.alert(
-          'Photo Rejected',
-          'Your photo doesn\'t meet our community guidelines. Please upload a different photo.'
-        );
-        setUploading(false);
+      try {
+        console.log('[DEBUG] Starting upload to Firebase');
+        const downloadUrl = await uploadPhoto(user.uid, photoUri);
+        console.log('[DEBUG] Upload successful, got URL:', downloadUrl);
+        
+        // Simulate AI moderation
+        console.log('[DEBUG] Starting photo moderation');
+        const moderationResult = await moderatePhoto(downloadUrl);
+        console.log('[DEBUG] Moderation result:', moderationResult);
+        
+        if (!moderationResult.isAppropriate) {
+          console.log('[DEBUG] Photo rejected by moderation');
+          Alert.alert(
+            'Photo Rejected',
+            'Your photo doesn\'t meet our community guidelines. Please upload a different photo.'
+          );
+          setUploading(false);
+          setCurrentPhotoIndex(null);
+          return;
+        }
+        
+        // Add to profile state
+        console.log('[DEBUG] Adding photo to profile state');
+        dispatch({ type: 'ADD_PHOTO', payload: downloadUrl });
+        console.log('[DEBUG] Photo added successfully');
+      } catch (err) {
+        console.error('[ERROR] Error uploading photo:', err);
+        setError('Failed to upload photo. Please try again.');
         setCurrentPhotoIndex(null);
-        return;
       }
       
-      // Add to profile state
-      dispatch({ type: 'ADD_PHOTO', payload: downloadUrl });
-      setCurrentPhotoIndex(null);
-      
     } catch (error) {
-      console.error('Error adding photo:', error);
-      Alert.alert('Error', 'Failed to upload photo. Please try again.');
+      console.error('[ERROR] Unhandled error in photo upload process:', error);
+      setError('An unexpected error occurred. Please try again.');
+      setCurrentPhotoIndex(null);
     } finally {
+      console.log('[DEBUG] Resetting uploading state to false');
       setUploading(false);
     }
   };
@@ -89,6 +158,31 @@ const PhotosScreen: React.FC = () => {
     }
   };
   
+  // Function to handle tapping on an empty photo box
+  const handleEmptyPhotoPress = (index: number) => {
+    // For web, just open the library picker
+    // For mobile, could show an action sheet to choose between camera and library
+    if (Platform.OS === 'web') {
+      handleAddPhoto('library');
+    } else {
+      Alert.alert(
+        'Add Photo',
+        'Choose a photo source',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Camera', 
+            onPress: () => handleAddPhoto('camera')
+          },
+          { 
+            text: 'Photo Library', 
+            onPress: () => handleAddPhoto('library')
+          }
+        ]
+      );
+    }
+  };
+  
   return (
     <ProfileSetupLayout
       title="Profile Photos"
@@ -101,6 +195,36 @@ const PhotosScreen: React.FC = () => {
           {state.photos.length} of {REQUIRED_PHOTOS_COUNT} photos
         </Text>
         
+        {Platform.OS === 'web' && (
+          <View style={styles.webNotice}>
+            <MaterialIcons name="info" size={24} color="#FF3B6F" />
+            <Text style={styles.webNoticeText}>
+              For the best photo upload experience, we recommend using the Deeply app on your mobile device.
+            </Text>
+          </View>
+        )}
+        
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+        
+        {/* Firebase Test Button */}
+        <TouchableOpacity 
+          style={styles.testButton} 
+          onPress={testFirebase}
+          disabled={uploading}
+        >
+          <Text style={styles.testButtonText}>Test Firebase Connection</Text>
+        </TouchableOpacity>
+        
+        {testResult && (
+          <View style={styles.testResultContainer}>
+            <Text style={styles.testResultText}>{testResult}</Text>
+          </View>
+        )}
+        
         <View style={styles.photosContainer}>
           {Array.from({ length: REQUIRED_PHOTOS_COUNT }).map((_, index) => {
             const photo = state.photos[index];
@@ -110,7 +234,15 @@ const PhotosScreen: React.FC = () => {
               <View key={index} style={styles.photoBox}>
                 {photo ? (
                   <View style={styles.photoWrapper}>
-                    <Image source={{ uri: photo }} style={styles.photo} />
+                    <SmartImage 
+                      uri={photo}
+                      style={styles.photo} 
+                      onError={(e) => {
+                        console.error('[ERROR] Error loading image:', e.nativeEvent.error);
+                        // If there's an error loading the image, we could show a fallback
+                        // or handle it in some other way
+                      }}
+                    />
                     <TouchableOpacity
                       style={styles.removeButton}
                       onPress={() => handleRemovePhoto(photo)}
@@ -125,10 +257,15 @@ const PhotosScreen: React.FC = () => {
                     <Text style={styles.uploadingText}>Uploading...</Text>
                   </View>
                 ) : (
-                  <View style={styles.emptyPhoto}>
+                  <TouchableOpacity
+                    style={styles.emptyPhoto}
+                    onPress={() => handleEmptyPhotoPress(index)}
+                    disabled={uploading}
+                    activeOpacity={0.7}
+                  >
                     <MaterialIcons name="add-photo-alternate" size={40} color="#ccc" />
                     <Text style={styles.emptyPhotoText}>Add Photo {index + 1}</Text>
-                  </View>
+                  </TouchableOpacity>
                 )}
               </View>
             );
@@ -179,6 +316,56 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 10,
   },
+  webNotice: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF5F7',
+    padding: 15,
+    borderRadius: 8,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  webNoticeText: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#333',
+  },
+  errorContainer: {
+    backgroundColor: '#FFEBEE',
+    padding: 15,
+    borderRadius: 8,
+    marginHorizontal: 15,
+    marginBottom: 15,
+  },
+  errorText: {
+    color: '#D32F2F',
+    fontSize: 14,
+  },
+  testButton: {
+    backgroundColor: '#3F51B5',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 15,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  testResultContainer: {
+    backgroundColor: '#E8F5E9',
+    padding: 15,
+    borderRadius: 8,
+    marginHorizontal: 15,
+    marginBottom: 15,
+  },
+  testResultText: {
+    color: '#2E7D32',
+    fontSize: 14,
+  },
   photosContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -191,6 +378,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     borderRadius: 10,
     overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
   },
   photoWrapper: {
     width: '100%',
@@ -200,70 +388,71 @@ const styles = StyleSheet.create({
   photo: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   removeButton: {
     position: 'absolute',
-    top: 5,
-    right: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 15,
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     width: 30,
     height: 30,
-    alignItems: 'center',
+    borderRadius: 15,
     justifyContent: 'center',
-  },
-  emptyPhoto: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#f8f8f8',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyPhotoText: {
-    marginTop: 10,
-    color: '#666',
   },
   uploadingContainer: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#f8f8f8',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   uploadingText: {
     marginTop: 10,
     color: '#666',
   },
+  emptyPhoto: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    borderRadius: 10,
+  },
+  emptyPhotoText: {
+    marginTop: 10,
+    color: '#666',
+    textAlign: 'center',
+  },
   buttonContainer: {
-    marginVertical: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 20,
   },
   photoButton: {
-    flexDirection: 'row',
     backgroundColor: '#FF3B6F',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    minWidth: 150,
     justifyContent: 'center',
-    marginVertical: 8,
   },
   buttonText: {
-    color: '#fff',
+    color: 'white',
+    marginLeft: 8,
     fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 10,
   },
   infoContainer: {
     padding: 15,
-    backgroundColor: '#f8f8f8',
-    borderRadius: 10,
-    marginVertical: 20,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginHorizontal: 15,
+    marginBottom: 30,
   },
   infoTitle: {
     fontSize: 16,
@@ -272,7 +461,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
-    color: '#666',
+    color: '#555',
     marginBottom: 5,
   },
 });

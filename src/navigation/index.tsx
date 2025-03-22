@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { ActivityIndicator, View, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 
 // Import screens
 import WelcomeScreen from '../screens/WelcomeScreen';
 import MatchScreen from '../screens/MatchScreen';
 import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
+import FirebaseDebugScreen from '../screens/debug/FirebaseDebugScreen';
 
 // Import navigators
 import ProfileSetupNavigator from './ProfileSetupNavigator';
@@ -27,6 +28,7 @@ export type RootStackParamList = {
   ProfileSetup: undefined;
   Match: undefined;
   Main: undefined;
+  FirebaseDebug: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -67,6 +69,7 @@ const Navigation = () => {
   const [profileComplete, setProfileComplete] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   
   // Set a timeout to prevent getting stuck in loading state
   useEffect(() => {
@@ -126,14 +129,44 @@ const Navigation = () => {
   
   return (
     <NavigationContainer>
-      {!user ? (
-        <AuthStack />
-      ) : !profileComplete ? (
-        <ProfileProvider>
-          <ProfileSetupNavigator />
-        </ProfileProvider>
+      {showDebug ? (
+        <Stack.Navigator screenOptions={{ headerShown: true }}>
+          <Stack.Screen 
+            name="FirebaseDebug" 
+            component={FirebaseDebugScreen} 
+            options={{
+              title: "Firebase Debugger",
+              headerLeft: () => (
+                <TouchableOpacity 
+                  onPress={() => setShowDebug(false)} 
+                  style={{ marginLeft: 10 }}
+                >
+                  <Text style={{ color: '#FF3B6F', fontSize: 16 }}>Back</Text>
+                </TouchableOpacity>
+              )
+            }}
+          />
+        </Stack.Navigator>
       ) : (
-        <AppStack />
+        <>
+          {!user ? (
+            <AuthStack />
+          ) : !profileComplete ? (
+            <ProfileProvider>
+              <ProfileSetupNavigator />
+            </ProfileProvider>
+          ) : (
+            <AppStack />
+          )}
+          
+          {/* Debug button - visible in all screens */}
+          <TouchableOpacity
+            style={styles.debugButton}
+            onPress={() => setShowDebug(true)}
+          >
+            <Text style={styles.debugButtonText}>Debug</Text>
+          </TouchableOpacity>
+        </>
       )}
     </NavigationContainer>
   );
@@ -162,6 +195,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'red',
     textAlign: 'center',
+  },
+  debugButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#FF3B6F',
+    padding: 10,
+    borderRadius: 5,
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
   },
 });
 
